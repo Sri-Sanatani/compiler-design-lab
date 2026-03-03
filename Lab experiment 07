@@ -1,0 +1,135 @@
+#include <stdio.h>
+#include <string.h>
+
+int k = 0, z = 0, i = 0, j = 0, c = 0;
+char a[64], stk[64], act[20];
+
+void check(void);
+
+int main() {
+    puts("GRAMMAR is:");
+    puts("E -> E + E");
+    puts("E -> E * E");
+    puts("E -> ( E )");
+    puts("E -> id");
+    puts("\nEnter input string (example: id+id*id or (id+id)*id):");
+
+    // safer than gets()
+    if (!fgets(a, sizeof(a), stdin)) return 0;
+    a[strcspn(a, "\n")] = '\0';   // remove newline
+
+    c = (int)strlen(a);
+    stk[0] = '\0';
+
+    strcpy(act, "SHIFT->");
+    puts("\nstack\t\tinput\t\taction");
+
+    for (k = 0, i = 0, j = 0; j < c; k++, i++, j++) {
+
+        // SHIFT "id" as a unit
+        if (a[j] == 'i' && a[j + 1] == 'd') {
+            stk[i] = a[j];
+            stk[i + 1] = a[j + 1];
+            stk[i + 2] = '\0';
+
+            a[j] = ' ';
+            a[j + 1] = ' ';
+
+            printf("\n$%s\t\t%s$\t\t%sid", stk, a, act);
+
+            i = i + 1;  // because we pushed 2 chars
+            j = j + 1;  // because we consumed 2 chars
+
+            check();
+        }
+        else if (a[j] != ' ') {
+            // SHIFT one symbol
+            stk[i] = a[j];
+            stk[i + 1] = '\0';
+
+            a[j] = ' ';
+
+            printf("\n$%s\t\t%s$\t\t%ssymbol", stk, a, act);
+
+            check();
+        }
+        else {
+            // skip spaces (already consumed)
+            i--;
+        }
+    }
+
+    // Final reductions after all shifts
+    check();
+
+    // ACCEPT condition: stack should be exactly "E"
+    if (strcmp(stk, "E") == 0) {
+        printf("\n\nString Accepted ✅\n");
+    } else {
+        printf("\n\nString Rejected ❌\n");
+    }
+
+    return 0;
+}
+
+void check(void) {
+    int changed = 1;
+
+    while (changed) {
+        changed = 0;
+
+        // REDUCE id -> E
+        for (z = 0; stk[z] != '\0' && stk[z + 1] != '\0'; z++) {
+            if (stk[z] == 'i' && stk[z + 1] == 'd') {
+                // replace "id" by "E"
+                stk[z] = 'E';
+
+                // shift left from z+2 to remove extra char
+                memmove(&stk[z + 1], &stk[z + 2], strlen(&stk[z + 2]) + 1);
+
+                printf("\n$%s\t\t%s$\t\tREDUCE->E", stk, a);
+                changed = 1;
+                break;
+            }
+        }
+        if (changed) continue;
+
+        // REDUCE E+E -> E
+        for (z = 0; stk[z] != '\0'; z++) {
+            if (stk[z] == 'E' && stk[z + 1] == '+' && stk[z + 2] == 'E') {
+                stk[z] = 'E';
+                memmove(&stk[z + 1], &stk[z + 3], strlen(&stk[z + 3]) + 1);
+
+                printf("\n$%s\t\t%s$\t\tREDUCE->E", stk, a);
+                changed = 1;
+                break;
+            }
+        }
+        if (changed) continue;
+
+        // REDUCE E*E -> E
+        for (z = 0; stk[z] != '\0'; z++) {
+            if (stk[z] == 'E' && stk[z + 1] == '*' && stk[z + 2] == 'E') {
+                stk[z] = 'E';
+                memmove(&stk[z + 1], &stk[z + 3], strlen(&stk[z + 3]) + 1);
+
+                printf("\n$%s\t\t%s$\t\tREDUCE->E", stk, a);
+                changed = 1;
+                break;
+            }
+        }
+        if (changed) continue;
+
+        // REDUCE (E) -> E
+        for (z = 0; stk[z] != '\0'; z++) {
+            if (stk[z] == '(' && stk[z + 1] == 'E' && stk[z + 2] == ')') {
+                stk[z] = 'E';
+                memmove(&stk[z + 1], &stk[z + 3], strlen(&stk[z + 3]) + 1);
+
+                printf("\n$%s\t\t%s$\t\tREDUCE->E", stk, a);
+                changed = 1;
+                break;
+            }
+        }
+    }
+}
