@@ -1,0 +1,48 @@
+def is_keyword(word):
+    keywords = [
+        "auto", "break", "case", "char", "const", "continue", "default",
+        "do", "double", "else", "enum", "extern", "float", "for", "goto",
+        "if", "int", "long", "register", "return", "short", "signed",
+        "sizeof", "static", "struct", "switch", "typedef", "union",
+        "unsigned", "void", "volatile", "while"
+    ]
+    return word in keywords
+
+
+def lexical_analyzer():
+    operators = "+-*/%="
+
+    try:
+        with open("program.txt", "r") as fp:
+            data = fp.read()
+    except FileNotFoundError:
+        print("Error while opening the file")
+        return
+
+    buffer = ""
+
+    for ch in data:
+        # check operators
+        if ch in operators:
+            print(f"{ch} is operator")
+
+        # build word (identifier/keyword)
+        if ch.isalnum():
+            if len(buffer) < 14:
+                buffer += ch
+        elif ch in [' ', '\n', '\t'] and buffer:
+            if is_keyword(buffer):
+                print(f"{buffer} is keyword")
+            else:
+                print(f"{buffer} is identifier")
+            buffer = ""
+
+    # if file ends without space/newline
+    if buffer:
+        if is_keyword(buffer):
+            print(f"{buffer} is keyword")
+        else:
+            print(f"{buffer} is identifier")
+
+
+lexical_analyzer()

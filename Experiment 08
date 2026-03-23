@@ -1,0 +1,57 @@
+def is_non_terminal(x):
+    return 'A' <= x <= 'Z'
+
+
+def is_terminal(x):
+    return (not is_non_terminal(x)) and x != '=' and x != '\0'
+
+
+def is_operator(x):
+    return x in ['+', '-', '*', '/']
+
+
+def not_operator_grammar():
+    print("Not operator grammar")
+    exit()
+
+
+def main():
+    grm = []
+
+    n = int(input("Enter number of productions: "))
+
+    print("Enter productions like E=E+E (no spaces):")
+    for _ in range(n):
+        grm.append(input().strip())
+
+    found_op = False
+
+    for production in grm:
+        # Must have form A=...
+        if len(production) < 3 or not is_non_terminal(production[0]) or production[1] != '=':
+            not_operator_grammar()
+
+        # Scan RHS from index 2
+        for j in range(2, len(production)):
+            curr = production[j]
+            next_char = production[j + 1] if j + 1 < len(production) else '\0'
+
+            # No two non-terminals should be adjacent
+            if is_non_terminal(curr) and is_non_terminal(next_char):
+                not_operator_grammar()
+
+            # Track if any operator is present
+            if is_operator(curr):
+                found_op = True
+
+            # '$' should not appear inside grammar
+            if curr == '$':
+                not_operator_grammar()
+
+    if found_op:
+        print("Operator grammar")
+    else:
+        print("Not operator grammar (no operators found)")
+
+
+main()

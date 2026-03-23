@@ -1,0 +1,123 @@
+a = ""
+stk = []
+
+
+def check():
+    global stk, a
+
+    changed = True
+
+    while changed:
+        changed = False
+
+        # REDUCE id -> E
+        z = 0
+        while z < len(stk) - 1:
+            if stk[z] == 'i' and stk[z + 1] == 'd':
+                stk[z] = 'E'
+                del stk[z + 1]
+
+                print(f"${''.join(stk)}\t\t{a}$\t\tREDUCE->E")
+                changed = True
+                break
+            z += 1
+        if changed:
+            continue
+
+        # REDUCE E+E -> E
+        z = 0
+        while z < len(stk) - 2:
+            if stk[z] == 'E' and stk[z + 1] == '+' and stk[z + 2] == 'E':
+                stk[z] = 'E'
+                del stk[z + 1:z + 3]
+
+                print(f"${''.join(stk)}\t\t{a}$\t\tREDUCE->E")
+                changed = True
+                break
+            z += 1
+        if changed:
+            continue
+
+        # REDUCE E*E -> E
+        z = 0
+        while z < len(stk) - 2:
+            if stk[z] == 'E' and stk[z + 1] == '*' and stk[z + 2] == 'E':
+                stk[z] = 'E'
+                del stk[z + 1:z + 3]
+
+                print(f"${''.join(stk)}\t\t{a}$\t\tREDUCE->E")
+                changed = True
+                break
+            z += 1
+        if changed:
+            continue
+
+        # REDUCE (E) -> E
+        z = 0
+        while z < len(stk) - 2:
+            if stk[z] == '(' and stk[z + 1] == 'E' and stk[z + 2] == ')':
+                stk[z] = 'E'
+                del stk[z + 1:z + 3]
+
+                print(f"${''.join(stk)}\t\t{a}$\t\tREDUCE->E")
+                changed = True
+                break
+            z += 1
+
+
+def main():
+    global a, stk
+
+    print("GRAMMAR is:")
+    print("E -> E + E")
+    print("E -> E * E")
+    print("E -> ( E )")
+    print("E -> id")
+    print("\nEnter input string (example: id+id*id or (id+id)*id):")
+
+    a = input().strip()
+    c = len(a)
+    stk = []
+
+    act = "SHIFT->"
+    print("\nstack\t\tinput\t\taction")
+
+    j = 0
+    while j < c:
+        # SHIFT "id" as a unit
+        if j + 1 < c and a[j] == 'i' and a[j + 1] == 'd':
+            stk.append(a[j])
+            stk.append(a[j + 1])
+
+            a = a[:j] + ' ' + ' ' + a[j + 2:]
+
+            print(f"${''.join(stk)}\t\t{a}$\t\t{act}id")
+
+            j += 2
+            check()
+
+        elif a[j] != ' ':
+            # SHIFT one symbol
+            stk.append(a[j])
+
+            a = a[:j] + ' ' + a[j + 1:]
+
+            print(f"${''.join(stk)}\t\t{a}$\t\t{act}symbol")
+
+            j += 1
+            check()
+
+        else:
+            j += 1
+
+    # Final reductions after all shifts
+    check()
+
+    # ACCEPT condition
+    if ''.join(stk) == "E":
+        print("\n\nString Accepted ✅")
+    else:
+        print("\n\nString Rejected ❌")
+
+
+main()

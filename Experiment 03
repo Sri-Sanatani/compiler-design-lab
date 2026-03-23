@@ -1,0 +1,115 @@
+dfa = [[[0 for _ in range(100)] for _ in range(2)] for _ in range(100)]
+go = [[0 for _ in range(2)] for _ in range(10000)]
+state = [0 for _ in range(10000)]
+arr = [0 for _ in range(10000)]
+
+
+def main():
+    print("\n(Inputs must be 0 or 1)")
+
+    st = int(input("\nEnter the number of NFA states: "))
+
+    if st <= 0 or st >= 100:
+        print("Invalid number of states.")
+        return
+
+    if (1 << st) >= 10000:
+        print("Too many states for this program (need 2^st < 10000). Try st <= 13.")
+        return
+
+    print(f"\nGive state numbers from 0 to {st - 1}")
+
+    fin = int(input("\nEnter number of final states: "))
+    f = list(map(int, input("Enter final states: ").split()))
+
+    for x in f:
+        if x < 0 or x >= st:
+            print("Invalid final state.")
+            return
+
+    rel = int(input("\nEnter the number of transition rules in NFA: "))
+    print("\nDefine each rule as: initial_state input_symbol(0/1) final_state")
+
+    for _ in range(rel):
+        p, q, r = map(int, input().split())
+
+        if p < 0 or p >= st or r < 0 or r >= st or (q != 0 and q != 1):
+            print("Invalid rule.")
+            return
+
+        dfa[p][q][r] = 1
+
+    in_state = int(input("\nEnter initial state: "))
+    if in_state < 0 or in_state >= st:
+        print("Invalid initial state.")
+        return
+
+    start = 1 << in_state
+
+    print("\nSolving according to DFA (Subset Construction)\n")
+
+    front = 0
+    back = 0
+    arr[back] = start
+    back += 1
+    state[start] = 1
+
+    while front < back:
+        subset = arr[front]
+        front += 1
+
+        for sym in range(2):
+            new_subset = 0
+
+            for k in range(st):
+                if subset & (1 << k):
+                    for nxt in range(st):
+                        if dfa[k][sym][nxt]:
+                            new_subset |= (1 << nxt)
+
+            go[subset][sym] = new_subset
+
+            if state[new_subset] == 0:
+                state[new_subset] = 1
+                arr[back] = new_subset
+                back += 1
+
+    print("DFA States (as subsets) and transitions:")
+    print("SubsetState\t on0\t on1")
+    for i in range(back):
+        subset = arr[i]
+        print(f"{subset}\t\t {go[subset][0]}\t {go[subset][1]}")
+
+    for test in range(3):
+        string = input("\nEnter string (only 0/1): ")
+
+        curr = start
+        print(f"Path: {curr}-", end="")
+        invalid = False
+
+        for ch in string:
+            if ch != '0' and ch != '1':
+                invalid = True
+                break
+            curr = go[curr][int(ch)]
+            print(f"{curr}-", end="")
+
+        if invalid:
+            print("\nInvalid string (only 0 and 1 allowed)")
+            continue
+
+        print(f"\nFinal subset state: {curr}")
+
+        accepted = False
+        for final_state in f:
+            if curr & (1 << final_state):
+                accepted = True
+                break
+
+        if accepted:
+            print("String Accepted")
+        else:
+            print("String Rejected")
+
+
+main()

@@ -1,0 +1,367 @@
+MAX_PROD = 25
+MAX_LEN = 50
+MAX_SET = 200
+MAX_TER = 50
+MAX_STACK = 200
+
+count = 0
+n = 0
+m = 0
+
+calc_first = [['!' for _ in range(MAX_SET)] for _ in range(MAX_PROD)]
+calc_follow = [['!' for _ in range(MAX_SET)] for _ in range(MAX_PROD)]
+
+production = ['' for _ in range(MAX_PROD)]
+first = ['' for _ in range(MAX_SET)]
+f = ['' for _ in range(MAX_SET)]
+
+
+def findfirst(c, q1, q2):
+    global n
+
+    if not c.isupper():
+        first[n] = c
+        n += 1
+        return
+
+    for j in range(count):
+        if production[j][0] == c:
+            if production[j][2] == '#':
+                if q1 < count and q2 < len(production[q1]) and production[q1][q2] == '\0':
+                    first[n] = '#'
+                    n += 1
+                elif q1 < count and q2 < len(production[q1]) and (q1 != 0 or q2 != 0):
+                    findfirst(production[q1][q2], q1, q2 + 1)
+                else:
+                    first[n] = '#'
+                    n += 1
+            elif not production[j][2].isupper():
+                first[n] = production[j][2]
+                n += 1
+            else:
+                findfirst(production[j][2], j, 3)
+
+
+def follow(c):
+    global m
+
+    if production[0][0] == c:
+        f[m] = '$'
+        m += 1
+
+    for i in range(count):
+        length = len(production[i])
+        for j in range(2, length):
+            if production[i][j] == c:
+                if j + 1 < length:
+                    followfirst(production[i][j + 1], i, j + 2)
+                if j + 1 >= length and c != production[i][0]:
+                    follow(production[i][0])
+
+
+def followfirst(c, c1, c2):
+    global m
+
+    if not c.isupper():
+        f[m] = c
+        m += 1
+        return
+
+    i = 0
+    j = 1
+
+    for i in range(count):
+        if calc_first[i][0] == c:
+            break
+
+    while i < count and calc_first[i][j] != '!':
+        if calc_first[i][j] != '#':
+            f[m] = calc_first[i][j]
+            m += 1
+        else:
+            if c2 >= len(production[c1]):
+                follow(production[c1][0])
+            else:
+                followfirst(production[c1][c2], c1, c2 + 1)
+        j += 1
+
+
+def term_index(ter, sid, t):
+    for z in range(sid):
+        if ter[z] == t:
+            return z
+    return -1
+
+
+def main():
+    global count, n, m
+
+    jm = 0
+    km = 0
+
+    count = int(input("How many productions? : "))
+
+    if count <= 0 or count > MAX_PROD:
+        print("Invalid count.")
+        return
+
+    print(f"\nEnter {count} productions in form A=B where A and B are grammar symbols.")
+    print("Use # for epsilon.\n")
+
+    for i in range(count):
+        production[i] = input().strip()
+
+    for k in range(count):
+        for kay in range(MAX_SET):
+            calc_first[k][kay] = '!'
+
+    done = []
+    point1 = 0
+
+    for k in range(count):
+        c = production[k][0]
+        point2 = 0
+        xxx = 0
+
+        for kay in range(len(done)):
+            if c == done[kay]:
+                xxx = 1
+
+        if xxx == 1:
+            continue
+
+        findfirst(c, 0, 0)
+        done.append(c)
+
+        print(f"\nFirst({c}) = {{ ", end="")
+        calc_first[point1][point2] = c
+        point2 += 1
+
+        for i in range(jm, n):
+            chk = 0
+            for lark in range(point2):
+                if first[i] == calc_first[point1][lark]:
+                    chk = 1
+                    break
+            if chk == 0:
+                print(f"{first[i]}, ", end="")
+                calc_first[point1][point2] = first[i]
+                point2 += 1
+        print("}")
+        jm = n
+        point1 += 1
+
+    print("\n-----------------------------------------------\n")
+
+    for k in range(count):
+        for kay2 in range(MAX_SET):
+            calc_follow[k][kay2] = '!'
+
+    donee = []
+    point1 = 0
+
+    for e in range(count):
+        ck = production[e][0]
+        point2 = 0
+        xxx = 0
+
+        for kay in range(len(donee)):
+            if ck == donee[kay]:
+                xxx = 1
+
+        if xxx == 1:
+            continue
+
+        follow(ck)
+        donee.append(ck)
+
+        print(f"Follow({ck}) = {{ ", end="")
+        calc_follow[point1][point2] = ck
+        point2 += 1
+
+        for i in range(km, m):
+            chk = 0
+            for lark in range(point2):
+                if f[i] == calc_follow[point1][lark]:
+                    chk = 1
+                    break
+            if chk == 0:
+                print(f"{f[i]}, ", end="")
+                calc_follow[point1][point2] = f[i]
+                point2 += 1
+        print("}\n")
+
+        km = m
+        point1 += 1
+
+    ter = ['!' for _ in range(MAX_TER)]
+    sid = 0
+
+    for k in range(count):
+        length = len(production[k])
+        for pos in range(length):
+            sym = production[k][pos]
+            if not sym.isupper() and sym != '#' and sym != '=' and sym != '\0':
+                exists = 0
+                for ap in range(sid):
+                    if ter[ap] == sym:
+                        exists = 1
+                        break
+                if not exists and sid < MAX_TER - 2:
+                    ter[sid] = sym
+                    sid += 1
+
+    ter[sid] = '$'
+    sid += 1
+
+    print("\n\t\tLL(1) Parsing Table")
+    print("\t============================================================")
+    print("\t\t|\t", end="")
+    for ap in range(sid):
+        print(f"{ter[ap]}\t", end="")
+    print("\n\t============================================================")
+
+    table_nt = []
+    for ap in range(count):
+        nt = production[ap][0]
+        if nt not in table_nt:
+            table_nt.append(nt)
+
+    nt_count = len(table_nt)
+
+    table = [['!' for _ in range(MAX_TER + 1)] for _ in range(MAX_PROD)]
+    for r in range(nt_count):
+        table[r][0] = table_nt[r]
+        for c2 in range(1, sid + 1):
+            table[r][c2] = '!'
+
+    for ap in range(count):
+        A = production[ap][0]
+        X = production[ap][2]
+
+        row = -1
+        for r in range(nt_count):
+            if table[r][0] == A:
+                row = r
+                break
+
+        if row == -1:
+            continue
+
+        if X == '#':
+            idx_ff = -1
+            for r in range(count):
+                if calc_follow[r][0] == A:
+                    idx_ff = r
+                    break
+
+            if idx_ff != -1:
+                z = 1
+                while z < MAX_SET and calc_follow[idx_ff][z] != '!':
+                    col = term_index(ter, sid, calc_follow[idx_ff][z])
+                    if col != -1:
+                        table[row][col + 1] = '#'
+                    z += 1
+
+        elif not X.isupper():
+            col = term_index(ter, sid, X)
+            if col != -1:
+                table[row][col + 1] = chr(ord('A') + ap)
+
+        else:
+            idx_first = -1
+            for r in range(count):
+                if calc_first[r][0] == X:
+                    idx_first = r
+                    break
+
+            if idx_first != -1:
+                z = 1
+                while z < MAX_SET and calc_first[idx_first][z] != '!':
+                    if calc_first[idx_first][z] != '#':
+                        col = term_index(ter, sid, calc_first[idx_first][z])
+                        if col != -1:
+                            table[row][col + 1] = chr(ord('A') + ap)
+                    z += 1
+
+    for r in range(nt_count):
+        print(f"\t  {table[r][0]}\t|\t", end="")
+        for c2 in range(1, sid + 1):
+            if table[r][c2] == '!':
+                print("\t", end="")
+            elif table[r][c2] == '#':
+                print(f"{table[r][0]}=#\t", end="")
+            else:
+                idx = ord(table[r][c2]) - ord('A')
+                if 0 <= idx < count:
+                    print(f"{production[idx]}\t", end="")
+                else:
+                    print("?\t", end="")
+        print()
+
+    input_string = input("\nEnter INPUT STRING (end with $): ")
+
+    print("\nSTACK\t\tINPUT\t\tACTION")
+    print("-----------------------------------------------")
+
+    stack = ['' for _ in range(MAX_STACK)]
+    s_ptr = 0
+    i_ptr = 0
+
+    stack[s_ptr] = '$'
+    s_ptr += 1
+    stack[s_ptr] = table[0][0]
+    s_ptr += 1
+
+    while s_ptr > 0:
+        for z in range(s_ptr):
+            print(stack[z], end="")
+        print("\t\t", end="")
+
+        print(input_string[i_ptr:] + "\t\t", end="")
+
+        top = stack[s_ptr - 1]
+        look = input_string[i_ptr]
+
+        if top == '$' and look == '$':
+            print("ACCEPT")
+            break
+
+        if not top.isupper():
+            if top == look:
+                s_ptr -= 1
+                i_ptr += 1
+                print("POP")
+            else:
+                print("REJECT (terminal mismatch)")
+                break
+        else:
+            row = -1
+            for r in range(nt_count):
+                if table[r][0] == top:
+                    row = r
+                    break
+
+            col = term_index(ter, sid, look)
+
+            if row == -1 or col == -1 or table[row][col + 1] == '!':
+                print("REJECT (no rule)")
+                break
+
+            s_ptr -= 1
+
+            if table[row][col + 1] == '#':
+                print(f"{top} -> #")
+                continue
+            else:
+                idx = ord(table[row][col + 1]) - ord('A')
+                print(production[idx])
+
+                length = len(production[idx])
+                for p in range(length - 1, 1, -1):
+                    if production[idx][p] != '#':
+                        stack[s_ptr] = production[idx][p]
+                        s_ptr += 1
+
+
+main()

@@ -1,0 +1,186 @@
+MAX_PROD = 10
+MAX_LEN = 30
+MAX_SET = 100
+
+count = 0
+n = 0
+m = 0
+
+calc_first = [['!' for _ in range(MAX_SET)] for _ in range(MAX_PROD)]
+calc_follow = [['!' for _ in range(MAX_SET)] for _ in range(MAX_PROD)]
+
+production = ['' for _ in range(MAX_PROD)]
+
+f = ['' for _ in range(MAX_SET)]
+first = ['' for _ in range(MAX_SET)]
+
+
+def findfirst(c, q1, q2):
+    global n
+
+    if not c.isupper():
+        first[n] = c
+        n += 1
+        return
+
+    for j in range(count):
+        if production[j][0] == c:
+            next_char = production[j][2]
+
+            if next_char == '#':
+                if q1 != 0 or q2 != 0:
+                    if q2 < len(production[q1]):
+                        findfirst(production[q1][q2], q1, q2 + 1)
+                    else:
+                        first[n] = '#'
+                        n += 1
+                else:
+                    first[n] = '#'
+                    n += 1
+
+            elif not next_char.isupper():
+                first[n] = next_char
+                n += 1
+
+            else:
+                findfirst(next_char, j, 3)
+
+
+def follow(c):
+    global m
+
+    if production[0][0] == c:
+        f[m] = '$'
+        m += 1
+
+    for i in range(count):
+        length = len(production[i])
+
+        for j in range(2, length):
+            if production[i][j] == c:
+                if j + 1 < length:
+                    followfirst(production[i][j + 1], i, j + 2)
+
+                if j + 1 >= length and c != production[i][0]:
+                    follow(production[i][0])
+
+
+def followfirst(c, prod_index, next_pos):
+    global m
+
+    if not c.isupper():
+        f[m] = c
+        m += 1
+        return
+
+    i = 0
+    while i < count:
+        if calc_first[i][0] == c:
+            break
+        i += 1
+
+    if i == count:
+        return
+
+    j = 1
+    while calc_first[i][j] != '!':
+        if calc_first[i][j] != '#':
+            f[m] = calc_first[i][j]
+            m += 1
+        else:
+            if next_pos >= len(production[prod_index]):
+                follow(production[prod_index][0])
+            else:
+                followfirst(production[prod_index][next_pos], prod_index, next_pos + 1)
+        j += 1
+
+
+def main():
+    global count, n, m
+
+    jm = 0
+    km = 0
+
+    count = 8
+    production[0] = "E=TR"
+    production[1] = "R=+TR"
+    production[2] = "R=#"
+    production[3] = "T=FY"
+    production[4] = "Y=*FY"
+    production[5] = "Y=#"
+    production[6] = "F=(E)"
+    production[7] = "F=i"
+
+    for k in range(count):
+        for kay in range(MAX_SET):
+            calc_first[k][kay] = '!'
+            calc_follow[k][kay] = '!'
+
+    done = []
+    point1 = 0
+
+    for k in range(count):
+        c = production[k][0]
+
+        if c in done:
+            continue
+
+        findfirst(c, 0, 0)
+        done.append(c)
+
+        print(f"\nFirst({c}) = {{ ", end="")
+        point2 = 0
+        calc_first[point1][point2] = c
+        point2 += 1
+
+        for i in range(jm, n):
+            dup = False
+            for l in range(point2):
+                if first[i] == calc_first[point1][l]:
+                    dup = True
+                    break
+            if not dup:
+                print(f"{first[i]}, ", end="")
+                calc_first[point1][point2] = first[i]
+                point2 += 1
+        print("}")
+
+        jm = n
+        point1 += 1
+
+    print("\n-----------------------------------------------\n")
+
+    donee = []
+    point1 = 0
+
+    for e in range(count):
+        ck = production[e][0]
+
+        if ck in donee:
+            continue
+
+        follow(ck)
+        donee.append(ck)
+
+        print(f"Follow({ck}) = {{ ", end="")
+        point2 = 0
+        calc_follow[point1][point2] = ck
+        point2 += 1
+
+        for i in range(km, m):
+            dup = False
+            for l in range(point2):
+                if f[i] == calc_follow[point1][l]:
+                    dup = True
+                    break
+            if not dup:
+                print(f"{f[i]}, ", end="")
+                calc_follow[point1][point2] = f[i]
+                point2 += 1
+        print("}\n")
+
+        km = m
+        point1 += 1
+
+
+main()

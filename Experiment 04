@@ -1,0 +1,37 @@
+def eliminate_left_recursion():
+    production = input("Enter the production in form A->Aα|β|γ : ")
+
+    if "->" not in production:
+        print("Invalid production format.")
+        return
+
+    lhs, rhs = production.split("->", 1)
+
+    parts = rhs.split("|")
+
+    alpha = []
+    beta = []
+
+    # Separate alpha (left recursive) and beta (non-left-recursive)
+    for part in parts:
+        if part[0] == lhs[0]:
+            # store alpha after removing leading LHS symbol
+            alpha.append(part[1:])
+        else:
+            beta.append(part)
+
+    if len(alpha) == 0:
+        print("\nThe given grammar has NO immediate left recursion.")
+        print(f"{lhs}->" + "|".join(parts))
+        return
+
+    print("\nProductions after eliminating left recursion:")
+
+    # A -> βA'
+    print(f"{lhs}->" + "|".join([b + lhs + "'" for b in beta]))
+
+    # A' -> αA' | ε
+    print(f"{lhs}'->" + "|".join([a + lhs + "'" for a in alpha]) + "|ε")
+
+
+eliminate_left_recursion()
