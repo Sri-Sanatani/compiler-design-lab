@@ -1,0 +1,165 @@
+# Python program for Control Flow Analysis and Data Flow Analysis
+
+import re
+
+def extract_vars(expr):
+    tokens = re.findall(r'[a-zA-Z_][a-zA-Z0-9_]*', expr)
+    keywords = {'if', 'goto'}
+    return set(t for t in tokens if t not in keywords)
+
+def parse_statement(stmt):
+    stmt = stmt.strip()
+
+    if stmt.startswith("if"):
+        m = re.match(r'if\s+(.+)\s+goto\s+(\d+)', stmt)
+        if m:
+            cond = m.group(1)
+            target = int(m.group(2))
+            use = extract_vars(cond)
+            return {"type": "if", "use": use, "def": set(), "target": target}
+
+    elif stmt.startswith("goto"):
+        m = re.match(r'goto\s+(\d+)', stmt)
+        if m:
+            target = int(m.group(1))
+            return {"type": "goto", "use": set(), "def": set(), "target": target}
+
+    elif "=" in stmt:
+        left, right = stmt.split("=", 1)
+        left = left.strip()
+        right = right.strip()
+        use = extract_vars(right)
+        return {"type": "assign", "use": use, "def": {left}, "target": None}
+
+    return {"type": "other", "use": set(), "def": set(), "target": None}
+
+def leaders(statements):
+    lead = {1}
+    for i, stmt in enumerate(statements, start=1):
+        info = parse_statement(stmt)
+        if info["type"] in ("if", "goto") and info["target"] is not None:
+            lead.add(info["target"])
+            if i + 1 <= len(statements):
+                lead.add(i + 1)
+    return sorted(lead)
+
+def basic_blocks(statements):
+    lead = leaders(statements)
+    blocks = []
+    for i in range(len(lead)):
+        start = lead[i]
+        end = lead[i + 1] - 1 if i + 1 < len(lead) else len(statements)
+        blocks.append((start, end))
+    return blocks
+
+def build_cfg(statements, blocks):
+    stmt_to_block = {}
+    for idx, (start, end) in enumerate(blocks):
+        for s in range(start, end + 1):
+            stmt_to_block[s] = idx
+
+    cfg = {i: set() for i in range(len(blocks))}
+
+    for idx, (start, end) in enumerate(blocks):
+        last_stmt = statements[end - 1]
+        info = parse_statement(last_stmt)
+
+        if info["type"] == "goto":
+            cfg[idx].add(stmt_to_block[info["target"]])
+
+        elif info["type"] == "if":
+            cfg[idx].add(stmt_to_block[info["target"]])
+            if idx + 1 < len(blocks):
+                cfg[idx].add(idx + 1)
+
+        else:
+            if idx + 1 < len(blocks):
+                cfg[idx].add(idx + 1)
+
+    return cfg
+
+def block_gen_kill(statements, block):
+    start, end = block
+    gen = set()
+    kill = set()
+
+    for i in range(start, end + 1):
+        info = parse_statement(statements[i - 1])
+
+        for var in info["use"]:
+            if var not in kill:
+                gen.add(var)
+
+        for var in info["def"]:
+            kill.add(var)
+
+    return gen, kill
+
+def live_variable_analysis(statements, blocks, cfg):
+    n = len(blocks)
+    gen = []
+    kill = []
+
+    for block in blocks:
+        g, k = block_gen_kill(statements, block)
+        gen.append(g)
+        kill.append(k)
+
+    IN = [set() for _ in range(n)]
+    OUT = [set() for _ in range(n)]
+
+    changed = True
+    while changed:
+        changed = False
+        for i in range(n - 1, -1, -1):
+            old_in = IN[i].copy()
+            old_out = OUT[i].copy()
+
+            OUT[i] = set()
+            for succ in cfg[i]:
+                OUT[i] |= IN[succ]
+
+            IN[i] = gen[i] | (OUT[i] - kill[i])
+
+            if old_in != IN[i] or old_out != OUT[i]:
+                changed = True
+
+    return gen, kill, IN, OUT
+
+def main():
+    n = int(input("Enter number of statements: "))
+    statements = []
+
+    print("Enter the statements one by one:")
+    for _ in range(n):
+        statements.append(input().strip())
+
+    print("\nEntered Statements:")
+    for i, stmt in enumerate(statements, start=1):
+        print(f"{i}: {stmt}")
+
+    blocks = basic_blocks(statements)
+
+    print("\nBasic Blocks:")
+    for idx, (start, end) in enumerate(blocks):
+        print(f"Block B{idx + 1}: Statements {start} to {end}")
+
+    cfg = build_cfg(statements, blocks)
+
+    print("\nControl Flow Graph:")
+    for b in cfg:
+        succ = [f"B{x+1}" for x in sorted(cfg[b])]
+        print(f"B{b+1} -> {succ}")
+
+    gen, kill, IN, OUT = live_variable_analysis(statements, blocks, cfg)
+
+    print("\nData Flow Analysis (Live Variable Analysis):")
+    for i in range(len(blocks)):
+        print(f"\nBlock B{i+1}")
+        print("GEN :", gen[i])
+        print("KILL:", kill[i])
+        print("IN  :", IN[i])
+        print("OUT :", OUT[i])
+
+if __name__ == "__main__":
+    main()

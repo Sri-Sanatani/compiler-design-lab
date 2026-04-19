@@ -1,0 +1,89 @@
+# Python program for simple code generation from three-address code
+
+def is_number(x):
+    return x.isdigit()
+
+def is_pointer(x):
+    return x.startswith("*")
+
+def generate_code(statement):
+    statement = statement.replace(" ", "")
+
+    if "=" not in statement:
+        print("Invalid statement")
+        return
+
+    left, right = statement.split("=")
+
+    operators = ['+', '-', '*', '/']
+    op_found = None
+    pos = -1
+
+    for op in operators:
+        if op in right:
+            pos = right.find(op)
+            op_found = op
+            break
+
+    # Case 1: Simple assignment
+    if op_found is None:
+        if is_number(right):
+            print(f"MOV R0, #{right}")
+            print(f"MOV {left}, R0")
+        elif is_pointer(right):
+            print(f"MOV RP, {right[1:]}")
+            print(f"MOV R0, [RP]")
+            print(f"MOV {left}, R0")
+        elif is_pointer(left):
+            print(f"MOV R0, {right}")
+            print(f"MOV RP, {left[1:]}")
+            print(f"MOV [RP], R0")
+        else:
+            print(f"MOV R0, {right}")
+            print(f"MOV {left}, R0")
+        return
+
+    arg1 = right[:pos]
+    arg2 = right[pos+1:]
+
+    # Load first operand
+    if is_number(arg1):
+        print(f"MOV R0, #{arg1}")
+    elif is_pointer(arg1):
+        print(f"MOV RP, {arg1[1:]}")
+        print(f"MOV R0, [RP]")
+    else:
+        print(f"MOV R0, {arg1}")
+
+    # Perform operation with second operand
+    asm_op = {
+        '+': 'ADD',
+        '-': 'SUB',
+        '*': 'MUL',
+        '/': 'DIV'
+    }
+
+    if is_number(arg2):
+        print(f"{asm_op[op_found]} R0, #{arg2}")
+    elif is_pointer(arg2):
+        print(f"MOV RP, {arg2[1:]}")
+        print(f"{asm_op[op_found]} R0, [RP]")
+    else:
+        print(f"{asm_op[op_found]} R0, {arg2}")
+
+    # Store result
+    if is_pointer(left):
+        print(f"MOV RP, {left[1:]}")
+        print(f"MOV [RP], R0")
+    else:
+        print(f"MOV {left}, R0")
+
+
+# Main program
+n = int(input("Enter number of three address code statements: "))
+
+for i in range(n):
+    print(f"\nEnter statement {i+1}: ", end="")
+    stmt = input()
+    print("Generated Assembly Code:")
+    generate_code(stmt)

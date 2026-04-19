@@ -1,0 +1,216 @@
+from collections import defaultdict, deque
+
+# -----------------------------
+# Grammar definition
+# -----------------------------
+grammar = {
+    "E": [["E", "+", "T"], ["T"]],
+    "T": [["T", "*", "F"], ["F"]],
+    "F": [["(", "E", ")"], ["char"]]
+}
+
+start_symbol = "E"
+augmented_start = "S'"
+
+# Augmented grammar
+grammar[augmented_start] = [[start_symbol]]
+
+non_terminals = list(grammar.keys())
+terminals = set()
+
+for lhs in grammar:
+    for prod in grammar[lhs]:
+        for sym in prod:
+            if sym not in grammar:
+                terminals.add(sym)
+
+terminals.add("$")
+terminals = list(terminals)
+
+# -----------------------------
+# Helper functions
+# -----------------------------
+def closure(items):
+    """
+    items: set of (lhs, rhs_tuple, dot_position)
+    """
+    closure_set = set(items)
+
+    changed = True
+    while changed:
+        changed = False
+        new_items = set()
+
+        for lhs, rhs, dot in closure_set:
+            if dot < len(rhs):
+                symbol = rhs[dot]
+                if symbol in grammar:  # non-terminal
+                    for prod in grammar[symbol]:
+                        item = (symbol, tuple(prod), 0)
+                        if item not in closure_set:
+                            new_items.add(item)
+
+        if new_items:
+            closure_set.update(new_items)
+            changed = True
+
+    return frozenset(closure_set)
+
+
+def goto(items, symbol):
+    moved = set()
+    for lhs, rhs, dot in items:
+        if dot < len(rhs) and rhs[dot] == symbol:
+            moved.add((lhs, rhs, dot + 1))
+    if not moved:
+        return frozenset()
+    return closure(moved)
+
+
+def item_to_string(item):
+    lhs, rhs, dot = item
+    rhs = list(rhs)
+    rhs.insert(dot, "•")
+    return f"{lhs} -> {' '.join(rhs)}"
+
+
+# -----------------------------
+# Build canonical collection
+# -----------------------------
+start_item = (augmented_start, tuple(grammar[augmented_start][0]), 0)
+I0 = closure({start_item})
+
+states = [I0]
+state_map = {I0: 0}
+transitions = {}
+
+queue = deque([I0])
+
+symbols = set(terminals + non_terminals)
+symbols.discard("$")
+
+while queue:
+    I = queue.popleft()
+    i = state_map[I]
+
+    for sym in symbols:
+        J = goto(I, sym)
+        if J:
+            if J not in state_map:
+                state_map[J] = len(states)
+                states.append(J)
+                queue.append(J)
+            transitions[(i, sym)] = state_map[J]
+
+# -----------------------------
+# Number productions
+# -----------------------------
+productions = []
+for lhs in grammar:
+    for rhs in grammar[lhs]:
+        productions.append((lhs, rhs))
+
+prod_num = {}
+for i, p in enumerate(productions):
+    prod_num[(p[0], tuple(p[1]))] = i
+
+# -----------------------------
+# Build LR(0) parsing table
+# -----------------------------
+action = defaultdict(dict)
+goto_table = defaultdict(dict)
+conflicts = []
+
+for i, I in enumerate(states):
+    for item in I:
+        lhs, rhs, dot = item
+
+        # Shift actions
+        if dot < len(rhs):
+            sym = rhs[dot]
+            if sym in terminals and sym != "$":
+                j = transitions.get((i, sym))
+                if j is not None:
+                    if sym in action[i] and action[i][sym] != f"s{j}":
+                        conflicts.append((i, sym, action[i][sym], f"s{j}"))
+                    action[i][sym] = f"s{j}"
+
+        # Reduce / Accept
+        else:
+            if lhs == augmented_start:
+                if "$" in action[i] and action[i]["$"] != "acc":
+                    conflicts.append((i, "$", action[i]["$"], "acc"))
+                action[i]["$"] = "acc"
+            else:
+                prod_index = prod_num[(lhs, rhs)]
+                for t in terminals:
+                    if t in action[i] and action[i][t] != f"r{prod_index}":
+                        conflicts.append((i, t, action[i][t], f"r{prod_index}"))
+                    action[i][t] = f"r{prod_index}"
+
+    # GOTO entries
+    for nt in non_terminals:
+        if nt == augmented_start:
+            continue
+        j = transitions.get((i, nt))
+        if j is not None:
+            goto_table[i][nt] = j
+
+# -----------------------------
+# Print productions
+# -----------------------------
+print("\nAUGMENTED GRAMMAR:")
+for i, (lhs, rhs) in enumerate(productions):
+    print(f"{i}: {lhs} -> {' '.join(rhs)}")
+
+# -----------------------------
+# Print states
+# -----------------------------
+print("\nCANONICAL LR(0) ITEMS:")
+for i, state in enumerate(states):
+    print(f"\nI{i}:")
+    for item in sorted(state):
+        print("   ", item_to_string(item))
+
+# -----------------------------
+# Print transitions
+# -----------------------------
+print("\nTRANSITIONS:")
+for (i, sym), j in sorted(transitions.items()):
+    print(f"I{i} -- {sym} --> I{j}")
+
+# -----------------------------
+# Print parsing table
+# -----------------------------
+print("\nLR(0) PARSING TABLE:")
+all_terminals = sorted(terminals)
+all_non_terminals = sorted([nt for nt in non_terminals if nt != augmented_start])
+
+header = ["State"] + [f"ACTION[{t}]" for t in all_terminals] + [f"GOTO[{nt}]" for nt in all_non_terminals]
+print("-" * 120)
+print("{:<8}".format(header[0]), end="")
+for h in header[1:]:
+    print("{:<15}".format(h), end="")
+print()
+print("-" * 120)
+
+for i in range(len(states)):
+    print("{:<8}".format(i), end="")
+    for t in all_terminals:
+        print("{:<15}".format(action[i].get(t, "")), end="")
+    for nt in all_non_terminals:
+        print("{:<15}".format(str(goto_table[i].get(nt, ""))), end="")
+    print()
+
+print("-" * 120)
+
+# -----------------------------
+# Print conflicts
+# -----------------------------
+if conflicts:
+    print("\nCONFLICTS FOUND:")
+    for state, symbol, old, new in conflicts:
+        print(f"State I{state}, Symbol '{symbol}': {old} vs {new}")
+    print("\nThis grammar is NOT a pure LR(0) grammar.")
+else:
+    print("\nNo conflicts found. Grammar is LR(0).")

@@ -1,0 +1,88 @@
+# Intermediate Code Generation:
+# Quadruple, Triple, Indirect Triple
+
+def precedence(op):
+    if op in ['+', '-']:
+        return 1
+    if op in ['*', '/']:
+        return 2
+    return 0
+
+
+def infix_to_postfix(expr):
+    stack = []
+    postfix = []
+    
+    for ch in expr:
+        if ch.isalnum():   # operand
+            postfix.append(ch)
+        elif ch == '(':
+            stack.append(ch)
+        elif ch == ')':
+            while stack and stack[-1] != '(':
+                postfix.append(stack.pop())
+            stack.pop()  # remove '('
+        else:  # operator
+            while stack and precedence(stack[-1]) >= precedence(ch):
+                postfix.append(stack.pop())
+            stack.append(ch)
+    
+    while stack:
+        postfix.append(stack.pop())
+    
+    return postfix
+
+
+def generate_intermediate_code(expr):
+    postfix = infix_to_postfix(expr)
+    stack = []
+    quadruple = []
+    triple = []
+    indirect_triple = []
+    temp_count = 1
+
+    for symbol in postfix:
+        if symbol.isalnum():
+            stack.append(symbol)
+        else:
+            op2 = stack.pop()
+            op1 = stack.pop()
+            temp = f"t{temp_count}"
+            temp_count += 1
+
+            # Quadruple entry
+            quadruple.append([symbol, op1, op2, temp])
+
+            # Triple entry
+            triple.append([symbol, op1, op2])
+
+            stack.append(temp)
+
+    # Indirect Triple
+    for i in range(len(triple)):
+        indirect_triple.append(i)
+
+    return quadruple, triple, indirect_triple
+
+
+def display(quadruple, triple, indirect_triple):
+    print("\nQUADRUPLE:")
+    print("Index\tOp\tArg1\tArg2\tResult")
+    for i, row in enumerate(quadruple):
+        print(f"{i}\t{row[0]}\t{row[1]}\t{row[2]}\t{row[3]}")
+
+    print("\nTRIPLE:")
+    print("Index\tOp\tArg1\tArg2")
+    for i, row in enumerate(triple):
+        print(f"{i}\t{row[0]}\t{row[1]}\t{row[2]}")
+
+    print("\nINDIRECT TRIPLE:")
+    print("Pointer\tStatement")
+    for i, val in enumerate(indirect_triple):
+        print(f"{i}\t{val}")
+
+
+# Main Program
+expr = input("Enter the expression: ")
+quadruple, triple, indirect_triple = generate_intermediate_code(expr)
+display(quadruple, triple, indirect_triple)

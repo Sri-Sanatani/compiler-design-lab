@@ -1,0 +1,155 @@
+# Backend compiler in Python
+# Converts quadruples into simple 8086-style assembly code
+
+def is_number(x):
+    if x is None or x == "":
+        return False
+    try:
+        int(x)
+        return True
+    except ValueError:
+        return False
+
+
+def operand_repr(x):
+    """Return operand in assembly format."""
+    if x is None or x == "":
+        return ""
+    if is_number(x):
+        return str(x)
+    return x
+
+
+def generate_assembly(quadruples):
+    asm = []
+
+    asm.append("; 8086 Assembly Code Generated from Quadruples")
+    asm.append("DATA SEGMENT")
+    asm.append("DATA ENDS")
+    asm.append("CODE SEGMENT")
+    asm.append("ASSUME CS:CODE, DS:DATA")
+    asm.append("START:")
+    asm.append("    MOV AX, DATA")
+    asm.append("    MOV DS, AX")
+    asm.append("")
+
+    for quad in quadruples:
+        op, arg1, arg2, result = quad
+
+        if op == "=":
+            # Assignment
+            asm.append(f"    ; {result} = {arg1}")
+            asm.append(f"    MOV AX, {operand_repr(arg1)}")
+            asm.append(f"    MOV {result}, AX")
+            asm.append("")
+
+        elif op == "+":
+            # Addition
+            asm.append(f"    ; {result} = {arg1} + {arg2}")
+            asm.append(f"    MOV AX, {operand_repr(arg1)}")
+            asm.append(f"    ADD AX, {operand_repr(arg2)}")
+            asm.append(f"    MOV {result}, AX")
+            asm.append("")
+
+        elif op == "-":
+            # Subtraction
+            asm.append(f"    ; {result} = {arg1} - {arg2}")
+            asm.append(f"    MOV AX, {operand_repr(arg1)}")
+            asm.append(f"    SUB AX, {operand_repr(arg2)}")
+            asm.append(f"    MOV {result}, AX")
+            asm.append("")
+
+        elif op == "*":
+            # Multiplication
+            asm.append(f"    ; {result} = {arg1} * {arg2}")
+            asm.append(f"    MOV AX, {operand_repr(arg1)}")
+            asm.append(f"    MOV BX, {operand_repr(arg2)}")
+            asm.append("    MUL BX")
+            asm.append(f"    MOV {result}, AX")
+            asm.append("")
+
+        elif op == "/":
+            # Division
+            asm.append(f"    ; {result} = {arg1} / {arg2}")
+            asm.append(f"    MOV AX, {operand_repr(arg1)}")
+            asm.append("    MOV DX, 0")
+            asm.append(f"    MOV BX, {operand_repr(arg2)}")
+            asm.append("    DIV BX")
+            asm.append(f"    MOV {result}, AX")
+            asm.append("")
+
+        elif op.lower() == "uminus":
+            # Unary minus
+            asm.append(f"    ; {result} = -{arg1}")
+            asm.append(f"    MOV CX, {operand_repr(arg1)}")
+            asm.append("    NEG CX")
+            asm.append(f"    MOV {result}, CX")
+            asm.append("")
+
+        elif op.lower() == "jmp":
+            # Jump
+            asm.append(f"    ; JMP {result}")
+            asm.append(f"    JMP {result}")
+            asm.append("")
+
+        else:
+            asm.append(f"    ; Unsupported operator: {op}")
+            asm.append("")
+
+    asm.append("    MOV AH, 4CH")
+    asm.append("    INT 21H")
+    asm.append("CODE ENDS")
+    asm.append("END START")
+
+    return asm
+
+
+def read_quadruples(filename):
+    quadruples = []
+
+    with open(filename, "r") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+
+            parts = [x.strip() for x in line.split(",")]
+
+            if len(parts) != 4:
+                print(f"Skipping invalid line: {line}")
+                continue
+
+            quadruples.append(parts)
+
+    return quadruples
+
+
+def write_output(filename, asm_lines):
+    with open(filename, "w") as f:
+        for line in asm_lines:
+            f.write(line + "\n")
+
+
+def main():
+    print("Back End of Compiler - Quadruple to 8086 Assembly")
+    source_file = input("Enter source file name: ").strip()
+    output_file = input("Enter output file name: ").strip()
+
+    quadruples = read_quadruples(source_file)
+
+    if not quadruples:
+        print("No valid quadruples found in source file.")
+        return
+
+    asm_code = generate_assembly(quadruples)
+    write_output(output_file, asm_code)
+
+    print("\nGenerated 8086 Assembly Code:\n")
+    for line in asm_code:
+        print(line)
+
+    print(f"\nAssembly code written to {output_file}")
+
+
+if __name__ == "__main__":
+    main()
